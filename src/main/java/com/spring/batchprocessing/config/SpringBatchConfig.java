@@ -20,6 +20,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Configuration
@@ -76,10 +78,11 @@ public class SpringBatchConfig {
     public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager,
                       FlatFileItemReader<Customer> reader, CustomerProcessor processor, ItemWriter<Customer> writer) {
         return new StepBuilder("step1", jobRepository)
-                .<Customer, Customer> chunk(1000, transactionManager)
+                .<Customer, Customer> chunk(10, transactionManager)
                 .reader(reader)
                 .processor(processor)
                 .writer(writer)
+                .taskExecutor(taskExecutor())
                 .build();
     }
 
@@ -88,5 +91,12 @@ public class SpringBatchConfig {
         return new JobBuilder("importCSV",jobRepository)
                 .flow(step).end().build();
 
+    }
+
+    @Bean
+    public TaskExecutor taskExecutor(){
+        SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor();
+        asyncTaskExecutor.setConcurrencyLimit(10);
+        return asyncTaskExecutor;
     }
 }
